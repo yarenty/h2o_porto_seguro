@@ -1,9 +1,8 @@
-# H2O - sparkling Water Startup
+# H2O - Porto Seguro EDA tests
+==============================
 
 
 ## Dependencies
-Sparkling Water 2.2.0 which integrates:
- - Spark 2.2.0
  - H2O 3.14.0.2 
 
 ## Status
@@ -50,7 +49,6 @@ To run tests, please, run:
 ```
 
 
-
 # Checking code style
 
 To check codestyle:
@@ -69,16 +67,4 @@ Create application assembly which can be directly submitted to Spark cluster:
 
 The command creates jar file `build/libs/porto_seguro.jar` containing all necessary classes to run application on top of Spark cluster.
 
-## SBT
-```
-sbt assembly
-```
-
-
-Submit application to Spark cluster (in this case, local cluster is used):
-
-```
-export MASTER='local-cluster[3,2,1024]'
-SPARK_HOME/bin/spark-submit --class com.yarenty.h2o.Main build/libs/porto_seguro.jar
-```
-
+#

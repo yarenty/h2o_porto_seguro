@@ -28,12 +28,11 @@ object ModelPrepariaiton {
     val processedNames = input.names.filter( n => n.contains("_cat") || n.contains("_bin") )
     println(processedNames mkString ",")
 
-    //to make sure that they are enums (difefrent versions of default parsers in different releases h2o behave... differently ;-)
     input.colToEnum(processedNames)
     test.colToEnum(processedNames)
 
 
-    val (train, valid) = split(input,0.8) // this is split 089/0.1
+    val (train, valid) = split(input,0.8) // this is split 0.8/0.2
 
     val model = dlModel(H2OFrame(train), H2OFrame(valid))
     println(model)
