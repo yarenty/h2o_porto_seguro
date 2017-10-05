@@ -1,0 +1,53 @@
+{
+  "version": "1.0.0",
+  "cells": [
+    {
+      "type": "md",
+      "input": "# H2O dispay Porto Seguro  data\n\n## @yarenty Jaroslaw Nowosad\n#### 2017-10-03 \n\n  After data run ... lets check some inputs ..."
+    },
+    {
+      "type": "cs",
+      "input": "getFrames"
+    },
+    {
+      "type": "cs",
+      "input": "getFrameSummary \"train.hex\""
+    },
+    {
+      "type": "cs",
+      "input": "inspect getFrameSummary \"train.hex\""
+    },
+    {
+      "type": "cs",
+      "input": "plot inspect 'factors', getFrameSummary \"train.hex\""
+    },
+    {
+      "type": "cs",
+      "input": "plot (g) -> g(\n  g.point(\n    g.position \"Row\", \"target\"\n    g.fillColor g.value 'red'\n    g.fillOpacity g.value 0.75\n  )\n  g.path(\n    g.position \"Row\", \"ps_ind_15\"\n    g.fillColor g.value \"#ff0000\"\n  )\n\n  g.from inspect \"data\", getFrame \"train.hex\"\n)"
+    },
+    {
+      "type": "cs",
+      "input": "plot (g) -> g(\n  g.rect(\n    g.position \"target\", \"ps_ind_15\"\n    g.fillColor g.value 'blue'\n    g.fillOpacity g.value 0.55\n  )\n\n\n  g.from inspect \"data\", getFrame \"train.hex\"\n)"
+    },
+    {
+      "type": "cs",
+      "input": "changeColumnType frame: \"train.hex\", column: \"target\", type: 'enum'"
+    },
+    {
+      "type": "cs",
+      "input": "grid inspect \"factors\", getFrameSummary \"train.hex\""
+    },
+    {
+      "type": "cs",
+      "input": "grid inspect \"Frame distribution summary\", getFrameSummary \"train.hex\""
+    },
+    {
+      "type": "md",
+       "input": "## Summary\n\n"
+    },
+    {
+      "type": "cs",
+      "input": "grid inspect 'summary', getGrid \"final_grid\", sort_by:\"auc\", decreasing:true"
+    }
+  ]
+}
