@@ -101,6 +101,16 @@ package object h2o {
     splitter.getResult
   }
 
+
+  def memoryInfo(point:String): Unit = {
+    // memory info
+    val mb = 1024 *1024
+    val runtime = Runtime.getRuntime
+    Log.err(s"[$point]** Used Memory:  " + (runtime.totalMemory - runtime.freeMemory) / mb +"MB")
+    Log.err(s"[$point]** Free Memory:  " + runtime.freeMemory / mb +"MB" )
+    Log.err(s"[$point]** Total Memory: " + runtime.totalMemory / mb +"MB")
+    Log.err(s"[$point]** Max Memory:   " + runtime.maxMemory / mb +"MB")
+  }
   
 
 }

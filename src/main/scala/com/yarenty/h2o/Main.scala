@@ -18,8 +18,9 @@ object Main extends H2OStarter {
     Log.info("Hello World - using H2O logger")
 
 
+    memoryInfo("start")
     ModelPrepariaiton.flow()
-    
+    memoryInfo("finish")
     // Shutdown Spark cluster and H2O
 //    shutdown()
   }

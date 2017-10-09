@@ -70,14 +70,19 @@ dependencies {
     compile group: 'ai.h2o', name: "h2o-scala_${scalaBinaryVersion}", version: "$h2oVersion"
 
     compile group: 'ai.h2o', name: 'h2o-app', version: "$h2oVersion"
+    
+    compile group: 'ai.h2o', name: 'h2o-automl', version: "$h2oVersion"
 
     compile group: 'ai.h2o', name: 'h2o-ext-xgboost', version: "$h2oVersion"
 
     compile group: 'ai.h2o', name: 'h2o-automl', version: "$h2oVersion"
 
-//    compile group: 'ai.h2o', name: 'h2o-genmodel-ext-xgboost', version: "$h2oVersion", ext: 'pom'
+    compile group: 'ai.h2o', name: 'h2o-genmodel-ext-xgboost', version: "$h2oVersion"
 //    compile group: 'ai.h2o', name: 'h2o-parquet-parser', version: "$h2oVersion", ext: 'pom'
-//    compile group: 'ai.h2o', name: 'h2o-genmodel', version: "$h2oVersion"
+    compile group: 'ai.h2o', name: 'h2o-genmodel', version: "$h2oVersion"
+
+
+    compile group: 'org.joda', name: 'joda-convert', version: '1.8.1'
 
 
     compile group: 'org.scalanlp', name: "breeze_${scalaBinaryVersion}", version: '0.13'
@@ -150,8 +155,10 @@ shadowJar {
         include(dependency("ai.h2o:h2o-core"))
         include(dependency("ai.h2o:h2o-scala_${scalaBinaryVersion}"))
         include(dependency("ai.h2o:h2o-app"))
+        include(dependency("ai.h2o:h2o-automl"))
         include(dependency("ai.h2o:h2o-algos"))
         include(dependency("ai.h2o:h2o-genmodel"))
+        include(dependency("ai.h2o:h2o-genmodel-ext-xgboost"))
         include(dependency("ai.h2o:h2o-ext-xgboost"))
         include(dependency("ai.h2o:h2o-reflections"))
         include(dependency("ai.h2o:h2o-avro-parser"))
@@ -160,6 +167,10 @@ shadowJar {
         include(dependency("ai.h2o:h2o-web"))
         include(dependency("ai.h2o:h2o-persist-hdfs"))
 
+
+        include(dependency("gov.nist.math:jama"))
+        include(dependency("com.github.tony19:named-regexp"))
+        
         //H2O dependency
         include(dependency("joda-time:joda-time"))
         include(dependency("org.joda:joda-convert"))
