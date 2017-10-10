@@ -8,6 +8,7 @@ import hex.deeplearning.{DeepLearning, DeepLearningModel}
 import hex.deeplearning.DeepLearningModel.DeepLearningParameters
 import hex.tree.xgboost.{XGBoost, XGBoostModel}
 import hex.tree.xgboost.XGBoostModel.XGBoostParameters
+import water.fvec.Frame.DeepSelect
 import water.fvec.{H2OFrame, Vec}
 
 /**
@@ -15,27 +16,26 @@ import water.fvec.{H2OFrame, Vec}
   */
 object ModelPrepariaiton {
 
+  val datadir = "/opt/data/porto_seguro"
+  val trainFile = datadir + "/train.csv"
+  val testFile = datadir + "/test.csv"
 
+  val input = new H2OFrame(getSimpleCSVParser, new URI(trainFile))
+  val test = new H2OFrame(getSimpleCSVParser, new URI(testFile))
+  val onces = DataMunging.targetSelector(input)
+  
+  // Visualization
+  
   def flow(): Unit = {
-
-    val datadir = "/opt/data/porto_seguro"
-    val trainFile = datadir + "/train.csv"
-    val testFile = datadir + "/test.csv"
-
-
-    val NAs = Array(
-      Array("NAN"), Array("NAN"), Array("NAN"), Array("NAN"), Array("NAN"), Array("NAN"), Array("NAN"), Array("NAN"), Array("NAN"), Array("NAN"),
-      Array("NAN"), Array("NAN"), Array("NAN"), Array("NAN"), Array("NAN"), Array("NAN"), Array("NAN"), Array("NAN"), Array("NAN"), Array("NAN"),
-      Array("NAN"), Array("NAN"), Array("NAN"), Array("NAN"), Array("NAN"), Array("NAN"), Array("NAN"), Array("NAN"), Array("NAN"), Array("NAN"),
-      Array("NAN"), Array("NAN"), Array("NAN"), Array("NAN"), Array("NAN"), Array("NAN"), Array("NAN"), Array("NAN"), Array("NAN"), Array("NAN"),
-      Array("NAN"), Array("NAN"), Array("NAN"), Array("NAN"), Array("NAN"), Array("NAN"), Array("NAN"), Array("NAN")
-    )
-
-    val input = new H2OFrame(getSimpleCSVParser, new URI(trainFile))
-    val test = new H2OFrame(getSimpleCSVParser, new URI(testFile))
-
-
-    val processedNames = input.names.filter(n => n.contains("_cat") || n.contains("_bin")) ++ Array("target") //|| n.contains("_bin") ) 
+    
+    val processedNames = input.names.filter(n => n.contains("_cat") || n.contains("_bin")) ++ Array("target",
+      "ps_ind_01", "ps_ind_03", "ps_ind_14","ps_ind_15", 
+      "ps_reg_01", "ps_reg_02", 
+      "ps_car_11", "ps_car_15",
+      "ps_calc_01", "ps_calc_02", "ps_calc_03","ps_calc_04", "ps_calc_05",
+      "ps_calc_11", "ps_calc_12", "ps_calc_13", "ps_calc_14"
+    ) 
+    
     println(processedNames mkString ",")
 
     input.colToEnum(processedNames)
@@ -49,8 +49,8 @@ object ModelPrepariaiton {
     test.colToEnum(processedNames)
     test.remove("id")
 
-    process(input, tobeproc)
-    process(test, tobeproc)
+    DataMunging.processPower(input, tobeproc)
+    DataMunging.processPower(test, tobeproc)
 
 
     val (train, valid) = split(input, 0.8) // this is split 0.8/0.2
@@ -65,22 +65,8 @@ object ModelPrepariaiton {
   }
 
 
-  def process(h2OFrame: H2OFrame, toProc: Array[String]): Unit = {
-    for (col <- toProc) {
-      h2OFrame.add(col + "_pow2", power(h2OFrame.vec(col)))
-    }
-  }
+  
 
-  def power(in: Vec): Vec = {
-    val vec = Vec.makeZero(in.length)
-    val vw = vec.open
-
-    for (i <- 0 until in.length.toInt) {
-      vw.set(i, in.at(i) * in.at(i))
-    }
-    vw.close()
-    vec
-  }
 
   private def dlModel(train: H2OFrame, valid: H2OFrame): XGBoostModel = {
     val params = new XGBoostParameters()

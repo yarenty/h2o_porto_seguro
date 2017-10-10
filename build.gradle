@@ -85,7 +85,9 @@ dependencies {
     compile group: 'org.joda', name: 'joda-convert', version: '1.8.1'
 
 
-    compile group: 'org.scalanlp', name: "breeze_${scalaBinaryVersion}", version: '0.13'
+    compile group: 'org.scalanlp', name: "breeze_${scalaBinaryVersion}", version: '0.13.2'
+    
+    compile group: 'org.scalanlp', name: "breeze-viz_${scalaBinaryVersion}", version: '0.13.2'
 
     // And use scalatest for Scala testing
     testCompile "org.scalatest:scalatest_${scalaBinaryVersion}:2.2.1"
