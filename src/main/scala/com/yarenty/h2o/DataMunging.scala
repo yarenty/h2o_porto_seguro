@@ -4,12 +4,28 @@ import water.{Futures, Key}
 import water.fvec._
 
 object DataMunging {
+
+  def processToInt(h2OFrame: H2OFrame, toProc: Array[String]): Unit = {
+    for (col <- toProc) {
+      h2OFrame.add(col + "_cat", toInt(h2OFrame.vec(col)))
+      println("[toint] PROCSEED:" +col)
+    }
+  }
   
-  
+  def toInt(in: Vec): Vec = {
+    val vec = Vec.makeZero(in.length)
+    val vw = vec.open
+    for (i <- 0 until in.length.toInt) {
+      vw.set(i, (in.at(i) * 10).toInt )
+    }
+    vw.close()
+    vec
+  }
 
   def processPower(h2OFrame: H2OFrame, toProc: Array[String]): Unit = {
     for (col <- toProc) {
       h2OFrame.add(col + "_pow2", power(h2OFrame.vec(col)))
+      println("[power] PROCSEED:" +col)
     }
   }
 

@@ -28,29 +28,52 @@ object ModelPrepariaiton {
   
   def flow(): Unit = {
     
-    val processedNames = input.names.filter(n => n.contains("_cat") || n.contains("_bin")) ++ Array("target",
+    val toBeEnums = input.names.filter(n => n.contains("_cat") || n.contains("_bin")) ++ Array("target",
       "ps_ind_01", "ps_ind_03", "ps_ind_14","ps_ind_15", 
-      "ps_reg_01", "ps_reg_02", 
+      "ps_reg_01", "ps_reg_02",
+      "ps_reg_01_cat", "ps_reg_02_cat",
       "ps_car_11", "ps_car_15",
       "ps_calc_01", "ps_calc_02", "ps_calc_03","ps_calc_04", "ps_calc_05",
-      "ps_calc_11", "ps_calc_12", "ps_calc_13", "ps_calc_14"
-    ) 
+      "ps_calc_06", "ps_calc_07", "ps_calc_08","ps_calc_09", "ps_calc_10",
+      "ps_calc_11", "ps_calc_12", "ps_calc_13", "ps_calc_14",
+      "ps_calc_01_cat", "ps_calc_02_cat", "ps_calc_03_cat",
+      "ps_car_15_pow2"
+    )
     
-    println(processedNames mkString ",")
-
-    input.colToEnum(processedNames)
-    input.remove("id")
-    val tobeproc = input.names.filter(n => !processedNames.contains(n) && n != "id")
-
-    println("TO BE PROCESSED:" + tobeproc.mkString)
+    
+    val vecToInts = Array("ps_reg_01", "ps_reg_02", "ps_calc_01", "ps_calc_02", "ps_calc_03")
 
 
+    println("TO BE INTED:" + vecToInts.mkString)
+    DataMunging.processToInt(input, vecToInts)
+    DataMunging.processToInt(test, vecToInts)
+    
+    println(toBeEnums mkString ",")
+
+
+    val tobePowered =  Array("ps_car_12", "ps_car_14", "ps_car_15")
+
+    println("TO BE POWERED:" + tobePowered.mkString(","))
+    DataMunging.processPower(input, tobePowered)
+    DataMunging.processPower(test, tobePowered)
+
+
+    println("TO BE ENUMED:" + toBeEnums.mkString(","))
+    
+    input.colToEnum(toBeEnums)
+   
+    
     test.add(Array("target"), Array(test.vec("ps_calc_15_bin").makeCopy())) //just fake column otherwise XGBoost is blowing up ;-)
-    test.colToEnum(processedNames)
-    test.remove("id")
+    test.colToEnum(toBeEnums)
 
-    DataMunging.processPower(input, tobeproc)
-    DataMunging.processPower(test, tobeproc)
+    
+    
+    val toRemove = Array("id")
+    println("TO BE Removed:" + toRemove.mkString(","))
+    input.remove(toRemove)
+    test.remove(toRemove)
+    
+
 
 
     val (train, valid) = split(input, 0.8) // this is split 0.8/0.2
@@ -60,6 +83,7 @@ object ModelPrepariaiton {
 
     val prediction = model.score(test)
 
+    
     //test.delete()
     saveCSV(prediction, datadir + "/out.csv")
   }
@@ -73,7 +97,7 @@ object ModelPrepariaiton {
     params._train = train.key
     params._valid = valid.key
     params._response_column = "target"
-    params._ntrees = 50
+    params._ntrees = 100
     params._eta = 0.3
     params._learn_rate = 0.3
     params._max_depth = 3
