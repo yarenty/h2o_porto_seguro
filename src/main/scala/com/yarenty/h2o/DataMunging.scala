@@ -8,15 +8,15 @@ object DataMunging {
   def processToInt(h2OFrame: H2OFrame, toProc: Array[String]): Unit = {
     for (col <- toProc) {
       h2OFrame.add(col + "_cat", toInt(h2OFrame.vec(col)))
-      println("[toint] PROCSEED:" +col)
+      println("[toint] PROCSEED:" + col)
     }
   }
-  
-  def toInt(in: Vec): Vec = {
+
+  private def toInt(in: Vec): Vec = {
     val vec = Vec.makeZero(in.length)
     val vw = vec.open
     for (i <- 0 until in.length.toInt) {
-      vw.set(i, (in.at(i) * 10).toInt )
+      vw.set(i, (in.at(i) * 10).toInt)
     }
     vw.close()
     vec
@@ -25,11 +25,11 @@ object DataMunging {
   def processPower(h2OFrame: H2OFrame, toProc: Array[String]): Unit = {
     for (col <- toProc) {
       h2OFrame.add(col + "_pow2", power(h2OFrame.vec(col)))
-      println("[power] PROCSEED:" +col)
+      println("[power] PROCSEED:" + col)
     }
   }
 
-  def power(in: Vec): Vec = {
+  private def power(in: Vec): Vec = {
     val vec = Vec.makeZero(in.length)
     val vw = vec.open
 
@@ -40,7 +40,55 @@ object DataMunging {
     vec
   }
 
+
+  def processNANCat(h2OFrame: H2OFrame, toProc: Array[String]): Unit = {
+    for (col <- toProc) {
+      val v = nanToCat(h2OFrame.vec(col))
+      h2OFrame.remove(col)
+      h2OFrame.add(col, v)
+      println("[NAN-to-CAT] PROCSEED:" + col)
+    }
+  }
+
+  private def nanToCat(in: Vec): Vec = {
+    val vec = Vec.makeZero(in.length)
+    val vw = vec.open
+    for (i <- 0 until in.length.toInt) {
+      if (in.at(i).isNaN)
+        vw.set(i, -1)
+      else
+        vw.set(i, in.at(i))
+    }
+    vw.close()
+    vec
+  }
+
   
+
+
+  def processNANMean(h2OFrame: H2OFrame, toProc: Array[String]): Unit = {
+    for (col <- toProc) {
+      val v = nanToMean(h2OFrame.vec(col))
+      h2OFrame.remove(col)
+      h2OFrame.add(col, v)
+      println("[NAN-to-CAT] PROCSEED:" + col)
+    }
+  }
+
+  private def nanToMean(in: Vec): Vec = {
+    val vec = Vec.makeZero(in.length)
+    val vw = vec.open
+    val mm = in.mean
+    for (i <- 0 until in.length.toInt) {
+      if (in.at(i).isNaN)
+        vw.set(i, mm)
+      else
+        vw.set(i, in.at(i))
+    }
+    vw.close()
+    vec
+  }
+
 
   def targetSelector(h2OFrame: H2OFrame): H2OFrame = {
 
@@ -75,7 +123,7 @@ object DataMunging {
 
     val key = Key.make("ONCES").asInstanceOf[Key[Frame]]
 
-    H2OFrame( new Frame(key, h2OFrame.names, vecs))
+    H2OFrame(new Frame(key, h2OFrame.names, vecs))
 
   }
 
