@@ -10,29 +10,38 @@ object DataMunging {
 
   def processMedian(h2OFrame: H2OFrame): Unit = {
     for (n <- h2OFrame._names) {
-      if (n.compareTo("id") !=0 && n.compareTo("target")!=0)
-      if (n.contains("_bin")) {
+      if (n.compareTo("id") != 0 && n.compareTo("target") != 0) {
 
-        h2OFrame.colToEnum(Array(n))
-        
-        val dom = h2OFrame.vec(n).domain()
-        if (dom.length<7) {
-          for (i <- 0 until dom.length)
-            {
-              h2OFrame.add(n+"_oh_" + i, calcOH(h2OFrame.vec(n),i))
-            }
+        if (n.contains("_bin")) {
+
+        } else {
+          val median = new Median()
+          median.setData(vecToArray(h2OFrame.vec(n)))
+          median.evaluate()
+          h2OFrame.add(n + "_median_range", calcRange(h2OFrame.vec(n), median.evaluate()))
+          h2OFrame.add(n + "_mean_range", calcRange(h2OFrame.vec(n), h2OFrame.vec(n).mean))
+
         }
+        println("[median] PROCESEED:" + n)
         
-      } else {
-        val median =  new Median()
-        median.setData( vecToArray( h2OFrame.vec(n)))
-        median.evaluate()
-        h2OFrame.add(n + "_median_range", calcRange(h2OFrame.vec(n), median.evaluate()))
-        h2OFrame.add(n + "_mean_range", calcRange(h2OFrame.vec(n), h2OFrame.vec(n).mean))
-  
       }
-      println("[median] PROCESEED:" + n)
     }
+  }
+
+  def processHOTEndcoder(h2OFrame: H2OFrame, names: Array[String]): Unit = {
+    h2OFrame.colToEnum(names)
+    for (n <- names) {
+      val dom = h2OFrame.vec(n).domain()
+      if (dom.length > 2 && dom.length < 7) {
+        for (i <- 0 until dom.length) {
+          h2OFrame.add(n + "_oh_" + i, calcOH(h2OFrame.vec(n), i))
+          println(s"[hotone] PROCESSED: ${n} cardinal: ${dom.length}")
+        }
+      } else {
+        println(s"[hotone] SKPIPPED: ${n} cardinal: ${dom.length}")
+      }
+    }
+    
   }
 
 
@@ -47,7 +56,7 @@ object DataMunging {
     vec
   }
 
-  
+
   private def calcRange(in: Vec, ran: Double): Vec = {
     val vec = Vec.makeZero(in.length)
     val vw = vec.open
@@ -58,8 +67,6 @@ object DataMunging {
     vw.close()
     vec
   }
-
-  
 
 
   def processToInt(h2OFrame: H2OFrame, toProc: Array[String]): Unit = {
