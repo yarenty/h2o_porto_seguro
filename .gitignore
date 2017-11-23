@@ -77,3 +77,4 @@ build/
 gradle/
 project/
 
+/notepad/.ipynb_checkpoints/
