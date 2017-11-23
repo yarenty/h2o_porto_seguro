@@ -2,18 +2,16 @@ package com.yarenty.h2o
 
 import java.net.URI
 
-import com.yarenty.h2o.DataMunging.toInt
 import hex.Model.Parameters.CategoricalEncodingScheme
 import hex.ScoreKeeper.StoppingMetric
-import hex.deeplearning.{DeepLearning, DeepLearningModel}
 import hex.deeplearning.DeepLearningModel.DeepLearningParameters
-import hex.tree.gbm.{GBM, GBMModel}
+import hex.deeplearning.{DeepLearning, DeepLearningModel}
 import hex.tree.gbm.GBMModel.GBMParameters
-import hex.tree.xgboost.{XGBoost, XGBoostModel}
+import hex.tree.gbm.{GBM, GBMModel}
 import hex.tree.xgboost.XGBoostModel.XGBoostParameters
 import hex.tree.xgboost.XGBoostModel.XGBoostParameters.Backend
-import water.fvec.Frame.DeepSelect
-import water.fvec.{H2OFrame, Vec}
+import hex.tree.xgboost.{XGBoost, XGBoostModel}
+import water.fvec.H2OFrame
 
 /**
   * Created by yarenty on 20/06/17.
@@ -33,6 +31,7 @@ object ModelPrepariaiton {
   def flow(): Unit = {
 
 
+    //this must be here as next step sreates a lots of _cat columns ;-)
     val toBeEnums = input.names.filter(n => n.contains("_cat")) ++ Array(
       //      "ps_ind_01", "ps_ind_03", "ps_ind_14","ps_ind_15", 
       //      "ps_reg_01", "ps_reg_02",
@@ -44,9 +43,12 @@ object ModelPrepariaiton {
     )
 
 
+    // cool thing  - get binary median/mean  colums
+    // TODO test changing them to enums!
     DataMunging.processMedian(input)
     DataMunging.processMedian(test)
 
+    // TODO check which will be better - reg 03 is important!!
     val vecNanToMean = Array("ps_reg_03", "ps_car_11", "ps_car_12", "ps_car_14")
     println("TO BE NAN replaced by mean:" + vecNanToMean.mkString(","))
     //    DataMunging.processNANMean(input, vecNanToMean)
@@ -66,7 +68,8 @@ object ModelPrepariaiton {
     DataMunging.processPower(input, tobePowered)
     DataMunging.processPower(test, tobePowered)
 
-
+// really not sure ...
+    // check again with NANCat
     val vecNanToCat = input.names.filter(n => n.endsWith("_cat"))
     println("TO BE NAN replaced as new category:" + vecNanToCat.mkString(","))
     //    DataMunging.processNANCat(input, vecNanToCat)
@@ -75,6 +78,7 @@ object ModelPrepariaiton {
     DataMunging.processNANToMinusOne(test, vecNanToCat)
 
 
+    // create hot encoders colum based on categorical values!
     DataMunging.processHOTEndcoder(input, toBeEnums)
     DataMunging.processHOTEndcoder(test, toBeEnums)
 
@@ -85,9 +89,12 @@ object ModelPrepariaiton {
     input.colToEnum(Array("target"))
     test.colToEnum(Array("target"))
 
+    // strange one - two most importan values here .. muliplied 
     DataMunging.processMultiply(input)
     DataMunging.processMultiply(test)
 
+    
+    // no more removing
     //    val toRemove = Array("id",
     //      "ps_car_03_cat", "ps_car_05_cat" // to many missing values no point
     //    ) 
@@ -155,6 +162,30 @@ object ModelPrepariaiton {
   * */
 
 
+
+//  model	XGBoost_model_1511463550144_1
+//    model_checksum	-4691526202905552896
+//  frame	train_0.9
+//  frame_checksum	109074937358700432
+//  description	Metrics reported on training frame
+//    model_category	Binomial
+//    scoring_time	1511464659982
+//  predictions	·
+//  MSE	0.034604
+//  RMSE	0.186023
+//  nobs	535690
+//  r2	0.013994
+//  logloss	0.150638
+//  AUC	0.657293
+//  Gini	0.314585
+//  mean_per_class_error	0.421468
+
+  
+  // valid
+  
+  
+  
+
   private def xgbModel(train: H2OFrame, valid: H2OFrame): XGBoostModel = {
     val params = new XGBoostParameters()
     params._train = train.key
@@ -176,6 +207,8 @@ object ModelPrepariaiton {
     params._backend = Backend.cpu
     params._stopping_rounds = 20
     params._stopping_metric = StoppingMetric.AUC
+    
+    //TODO: test with other!!!
     params._categorical_encoding = CategoricalEncodingScheme.OneHotExplicit
 
     params._seed = 666L
@@ -201,6 +234,63 @@ object ModelPrepariaiton {
   * "pred_noise_bandwidth":0,"calibrate_model":false}
   * */
 
+  
+  
+//  model	gbm
+//  model_checksum	-1409264291168570112
+//  frame	train_0.9
+//  frame_checksum	109074937358700432
+//  description	·
+//  model_category	Binomial
+//    scoring_time	1511468096575
+//  predictions	·
+//  MSE	0.034509
+//  RMSE	0.185765
+//  nobs	535690
+//  r2	0.016723
+//  logloss	0.150247
+//  AUC	0.658398
+//  Gini	0.316796
+//  mean_per_class_error	0.425025
+  
+  //valid:
+
+//  model	gbm
+//    model_checksum	-1409264291168570112
+//  frame	test_0.9
+//  frame_checksum	-8978652314917430272
+//  description	·
+//  model_category	Binomial
+//    scoring_time	1511468100974
+//  predictions	·
+//  MSE	0.034949
+//  RMSE	0.186945
+//  nobs	59522
+//  r2	0.010808
+//  logloss	0.152702
+//  AUC	0.638738
+//  Gini	0.277475
+//  mean_per_class_error	0.430980
+
+
+
+//  model	XGBoost_model_1511463550144_1
+//    model_checksum	-4691526202905552896
+//  frame	test_0.9
+//  frame_checksum	-8978652314917430272
+//  description	Metrics reported on validation frame
+//    model_category	Binomial
+//    scoring_time	1511464660634
+//  predictions	·
+//  MSE	0.034936
+//  RMSE	0.186912
+//  nobs	59522
+//  r2	0.011162
+//  logloss	0.152519
+//  AUC	0.640187
+//  Gini	0.280375
+//  mean_per_class_error	0.435849
+
 
   private def gbmModel(train: H2OFrame, valid: H2OFrame): GBMModel = {
     val params = new GBMParameters
@@ -218,6 +308,8 @@ object ModelPrepariaiton {
 
     params._stopping_rounds = 20
     params._stopping_metric = StoppingMetric.AUC
+
+    //TODO: test with other!!!
     params._categorical_encoding = CategoricalEncodingScheme.OneHotExplicit
 
     params._seed = 666L
