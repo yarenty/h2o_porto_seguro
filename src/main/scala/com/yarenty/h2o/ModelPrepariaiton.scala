@@ -27,9 +27,9 @@ object ModelPrepariaiton {
   val input = new H2OFrame(getSimpleCSVParser, new URI(trainFile))
   val test = new H2OFrame(getSimpleCSVParser, new URI(testFile))
   val onces = DataMunging.targetSelector(input)
-  
+
   // Visualization
-  
+
   def flow(): Unit = {
 
 
@@ -102,19 +102,19 @@ object ModelPrepariaiton {
     val model = xgbModel(H2OFrame(train), H2OFrame(valid))
     println(model)
     val prediction = model.score(test)
-    
+
     //test.delete()
     saveCSV(prediction, datadir + "/out.csv")
-    
+
     val model2 = xgbModel(H2OFrame(train), H2OFrame(valid))
     println(model2)
     val prediction2 = model2.score(test)
     saveCSV(prediction, datadir + "/out2.csv")
 
-    
+
     //m1*0.4 + m2*0.6 - 1.0  //clip (0,1) run1 0.274
     //exp(m1*0.6 + m2*0.4 - 1.0)  //clip (0,1) run2 0.275
-    
+
     //TODO!!!
     //exp(m1*0.6 + m2*0.4 - 1.0)   min/2 over * 1.5//clip (0,1) run2 
   }
@@ -130,7 +130,7 @@ object ModelPrepariaiton {
     params._epochs = 1
     params._stopping_rounds = 5
     params._stopping_metric = StoppingMetric.AUC
-//    params._categorical_encoding = CategoricalEncodingScheme.OneHotExplicit
+    //    params._categorical_encoding = CategoricalEncodingScheme.OneHotExplicit
 
     val dl = new DeepLearning(params)
     dl.trainModel.get
@@ -153,18 +153,16 @@ object ModelPrepariaiton {
   * "booster":"gbtree","reg_lambda":"1.3","reg_alpha":"8","backend":"auto","gpu_id":0}
   * 
   * */
-  
-  
-  
-  
+
+
   private def xgbModel(train: H2OFrame, valid: H2OFrame): XGBoostModel = {
     val params = new XGBoostParameters()
     params._train = train.key
     params._valid = valid.key
     params._response_column = "target"
     params._ntrees = 500
-    params._max_depth =4
-    params._min_child_weight= 0.77
+    params._max_depth = 4
+    params._min_child_weight = 0.77
     params._eta = 0.09
     params._learn_rate = 0.3
     params._subsample = 0.8
@@ -179,15 +177,16 @@ object ModelPrepariaiton {
     params._stopping_rounds = 20
     params._stopping_metric = StoppingMetric.AUC
     params._categorical_encoding = CategoricalEncodingScheme.OneHotExplicit
-    
-    
+
+    params._seed = 666L
+
 
     val dl = new XGBoost(params)
     dl.trainModel.get
 
   }
 
-  
+
   /*
   * 
   * buildModel 'gbm', {"model_id":"gbm","training_frame":"train_0.9","validation_frame":"test_0.9","nfolds":0,
@@ -203,25 +202,25 @@ object ModelPrepariaiton {
   * */
 
 
-
   private def gbmModel(train: H2OFrame, valid: H2OFrame): GBMModel = {
     val params = new GBMParameters
     params._train = train.key
     params._valid = valid.key
     params._response_column = "target"
     params._ntrees = 500
-    params._max_depth =4
+    params._max_depth = 4
     params._learn_rate = 0.02
     params._sample_rate = 0.8
     params._nbins_top_level = 20
     params._nbins_cats = 20
     params._col_sample_rate_per_tree = 0.8
-    
+
 
     params._stopping_rounds = 20
     params._stopping_metric = StoppingMetric.AUC
     params._categorical_encoding = CategoricalEncodingScheme.OneHotExplicit
 
+    params._seed = 666L
 
 
     val dl = new GBM(params)
