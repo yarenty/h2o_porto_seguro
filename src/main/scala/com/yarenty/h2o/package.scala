@@ -71,6 +71,8 @@ package object h2o {
   }
 
 
+
+
   def arrayToTimeVec(arr: Array[Long]): Vec = {
     val vec = Vec.makeZero(arr.length, Vec.T_TIME)
     val vw = vec.open

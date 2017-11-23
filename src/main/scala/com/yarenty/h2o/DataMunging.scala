@@ -1,9 +1,66 @@
 package com.yarenty.h2o
 
+import com.yarenty.h2o.ModelPrepariaiton.input
+import org.apache.commons.math3.stat.descriptive.rank.Median
 import water.{Futures, Key}
 import water.fvec._
 
 object DataMunging {
+
+
+  def processMedian(h2OFrame: H2OFrame): Unit = {
+    for (n <- h2OFrame._names) {
+      if (n.compareTo("id") !=0 && n.compareTo("target")!=0)
+      if (n.contains("_bin")) {
+
+        h2OFrame.colToEnum(Array(n))
+        
+        val dom = h2OFrame.vec(n).domain()
+        if (dom.length<7) {
+          for (i <- 0 until dom.length)
+            {
+              h2OFrame.add(n+"_oh_" + i, calcOH(h2OFrame.vec(n),i))
+            }
+        }
+        
+      } else {
+        val median =  new Median()
+        median.setData( vecToArray( h2OFrame.vec(n)))
+        median.evaluate()
+        h2OFrame.add(n + "_median_range", calcRange(h2OFrame.vec(n), median.evaluate()))
+        h2OFrame.add(n + "_mean_range", calcRange(h2OFrame.vec(n), h2OFrame.vec(n).mean))
+  
+      }
+      println("[median] PROCESEED:" + n)
+    }
+  }
+
+
+  private def calcOH(in: Vec, v: Int): Vec = {
+    val vec = Vec.makeZero(in.length)
+    val vw = vec.open
+
+    for (i <- 0 until in.length.toInt) {
+      vw.set(i, if (in.at8(i) == v) 1 else 0)
+    }
+    vw.close()
+    vec
+  }
+
+  
+  private def calcRange(in: Vec, ran: Double): Vec = {
+    val vec = Vec.makeZero(in.length)
+    val vw = vec.open
+
+    for (i <- 0 until in.length.toInt) {
+      vw.set(i, if (in.at(i) > ran) 1 else 0)
+    }
+    vw.close()
+    vec
+  }
+
+  
+
 
   def processToInt(h2OFrame: H2OFrame, toProc: Array[String]): Unit = {
     for (col <- toProc) {
@@ -12,7 +69,9 @@ object DataMunging {
     }
   }
 
-  private def toInt(in: Vec): Vec = {
+  private def toInt(in: Vec): Vec
+
+  = {
     val vec = Vec.makeZero(in.length)
     val vw = vec.open
     for (i <- 0 until in.length.toInt) {
@@ -29,7 +88,9 @@ object DataMunging {
     }
   }
 
-  private def power(in: Vec): Vec = {
+  private def power(in: Vec): Vec
+
+  = {
     val vec = Vec.makeZero(in.length)
     val vw = vec.open
 
@@ -40,6 +101,22 @@ object DataMunging {
     vec
   }
 
+
+  def processMultiply(h2OFrame: H2OFrame): Unit = {
+    h2OFrame.add("ps_car_13_x_ps_reg_03", multiplyVec(h2OFrame.vec("ps_car_13"), h2OFrame.vec("ps_reg_03")))
+    println("[multiply] PROCSEED: ps_car_13_x_ps_reg_03")
+  }
+
+  def multiplyVec(a: Vec, b: Vec): Vec = {
+    val vec = Vec.makeZero(a.length)
+    val vw = vec.open
+
+    for (i <- 0 until a.length.toInt) {
+      vw.set(i, a.at(i) * b.at(i))
+    }
+    vw.close()
+    vec
+  }
 
   def processNANCat(h2OFrame: H2OFrame, toProc: Array[String]): Unit = {
     for (col <- toProc) {
@@ -63,8 +140,6 @@ object DataMunging {
     vec
   }
 
-  
-
 
   def processNANMean(h2OFrame: H2OFrame, toProc: Array[String]): Unit = {
     for (col <- toProc) {
@@ -82,6 +157,31 @@ object DataMunging {
     for (i <- 0 until in.length.toInt) {
       if (in.at(i).isNaN)
         vw.set(i, mm)
+      else
+        vw.set(i, in.at(i))
+    }
+    vw.close()
+    vec
+  }
+
+  def processNANToMinusOne(h2OFrame: H2OFrame, toProc: Array[String]): Unit = {
+    for (col <- toProc) {
+      val v = nanToMean(h2OFrame.vec(col))
+      h2OFrame.remove(col)
+      h2OFrame.add(col, v)
+      println("[NAN-to-CAT] PROCSEED:" + col)
+    }
+  }
+
+
+  private def nanToMinusOne(in: Vec): Vec
+
+  = {
+    val vec = Vec.makeZero(in.length)
+    val vw = vec.open
+    for (i <- 0 until in.length.toInt) {
+      if (in.at(i).isNaN)
+        vw.set(i, -1.0)
       else
         vw.set(i, in.at(i))
     }
