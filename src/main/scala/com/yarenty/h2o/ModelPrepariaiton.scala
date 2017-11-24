@@ -6,29 +6,34 @@ import hex.Model.Parameters.CategoricalEncodingScheme
 import hex.ScoreKeeper.StoppingMetric
 import hex.deeplearning.DeepLearningModel.DeepLearningParameters
 import hex.deeplearning.{DeepLearning, DeepLearningModel}
+import hex.genmodel.utils.DistributionFamily
 import hex.tree.gbm.GBMModel.GBMParameters
 import hex.tree.gbm.{GBM, GBMModel}
 import hex.tree.xgboost.XGBoostModel.XGBoostParameters
-import hex.tree.xgboost.XGBoostModel.XGBoostParameters.Backend
+import hex.tree.xgboost.XGBoostModel.XGBoostParameters.{Backend, Booster}
 import hex.tree.xgboost.{XGBoost, XGBoostModel}
-import water.fvec.H2OFrame
+import water.fvec.{Frame, H2OFrame}
 
 /**
   * Created by yarenty on 20/06/17.
   */
 object ModelPrepariaiton {
 
-  val datadir = "/opt/data/porto_seguro"
-  val trainFile = datadir + "/train.csv"
-  val testFile = datadir + "/test.csv"
 
-  val input = new H2OFrame(getSimpleCSVParser, new URI(trainFile))
-  val test = new H2OFrame(getSimpleCSVParser, new URI(testFile))
-  val onces = DataMunging.targetSelector(input)
+  val datadir = "/opt/data/porto_seguro"
+
 
   // Visualization
 
   def flow(): Unit = {
+
+
+    val trainFile = datadir + "/train.csv"
+    val testFile = datadir + "/test.csv"
+
+    val test = new H2OFrame(getSimpleCSVParser, new URI(testFile))
+    val input = new H2OFrame(getSimpleCSVParser, new URI(trainFile))
+    val onces = DataMunging.targetSelector(input)
 
 
     //this must be here as next step sreates a lots of _cat columns ;-)
@@ -68,7 +73,7 @@ object ModelPrepariaiton {
     DataMunging.processPower(input, tobePowered)
     DataMunging.processPower(test, tobePowered)
 
-// really not sure ...
+    // really not sure ...
     // check again with NANCat
     val vecNanToCat = input.names.filter(n => n.endsWith("_cat"))
     println("TO BE NAN replaced as new category:" + vecNanToCat.mkString(","))
@@ -93,7 +98,7 @@ object ModelPrepariaiton {
     DataMunging.processMultiply(input)
     DataMunging.processMultiply(test)
 
-    
+
     // no more removing
     //    val toRemove = Array("id",
     //      "ps_car_03_cat", "ps_car_05_cat" // to many missing values no point
@@ -106,28 +111,62 @@ object ModelPrepariaiton {
 
     val (train, valid) = split(input, 0.9) // this is split 0.8/0.2
 
-    val model = xgbModel(H2OFrame(train), H2OFrame(valid))
-    println(model)
-    val prediction = model.score(test)
+    //    saveCSV(input, datadir + "/trainbig.csv")
+    //    saveCSV(test, datadir + "/testbig.csv")    
+    //    saveCSV(train, datadir + "/trainbig.csv")
+    //    saveCSV(valid, datadir + "/validbig.csv")
 
-    //test.delete()
-    saveCSV(prediction, datadir + "/out.csv")
-
-    val model2 = xgbModel(H2OFrame(train), H2OFrame(valid))
-    println(model2)
-    val prediction2 = model2.score(test)
-    saveCSV(prediction, datadir + "/out2.csv")
+    calculate(train, valid, test)
 
 
     //m1*0.4 + m2*0.6 - 1.0  //clip (0,1) run1 0.274
     //exp(m1*0.6 + m2*0.4 - 1.0)  //clip (0,1) run2 0.275
 
     //TODO!!!
-    //exp(m1*0.6 + m2*0.4 - 1.0)   min/2 over * 1.5//clip (0,1) run2 
+    //exp(m1*0.6 + m2*0.4 - 1.0)   min/2 over * 1.5//clip (0,1) run2  0.277 !!
+  }
+
+
+  def buildModel(): Unit = {
+    val trainFile = datadir + "/trainbig.csv"
+    val validFile = datadir + "/validbig.csv"
+    val testFile = datadir + "/testbig.csv"
+
+    val train = new H2OFrame(getSimpleCSVParser, new URI(trainFile))
+    val valid = new H2OFrame(getSimpleCSVParser, new URI(validFile))
+    val test = new H2OFrame(getSimpleCSVParser, new URI(testFile))
+    
+    val toBeEnums = train.names.filter(n => n.endsWith("_cat") || n.endsWith("_bin") || n.endsWith("_range") || n.contains("_oh_")) ++ Array(
+      "target",
+      "ps_calc_01", "ps_calc_02", "ps_calc_03", "ps_calc_04", "ps_calc_05",
+      "ps_calc_06", "ps_calc_07", "ps_calc_08", "ps_calc_09", "ps_calc_10",
+      "ps_calc_11", "ps_calc_12", "ps_calc_13", "ps_calc_14"
+    )
+    train.colToEnum(toBeEnums)
+    valid.colToEnum(toBeEnums)
+    test.colToEnum(toBeEnums)
+
+    calculate(train, valid, test)
+  }
+
+
+  private def calculate(train: Frame, valid: Frame, test: H2OFrame) = {
+    val model = xgbModel(H2OFrame(train), H2OFrame(valid))
+    println(model)
+    val prediction = model.score(test)
+    saveCSV(prediction, datadir + "/out.csv")
+
+
+    val model2 = lgbModel(H2OFrame(train), H2OFrame(valid))
+    println(model2)
+    val prediction2 = model2.score(test)
+    saveCSV(prediction2, datadir + "/out2.csv")
   }
 
 
   private def dlModel(train: H2OFrame, valid: H2OFrame): DeepLearningModel = {
+
+
     val params = new DeepLearningParameters()
     params._train = train.key
     params._valid = valid.key
@@ -162,29 +201,42 @@ object ModelPrepariaiton {
   * */
 
 
+  //  model	XGBoost_model_1511463550144_1
+  //    model_checksum	-4691526202905552896
+  //  frame	train_0.9
+  //  frame_checksum	109074937358700432
+  //  description	Metrics reported on training frame
+  //    model_category	Binomial
+  //    scoring_time	1511464659982
+  //  predictions	·
+  //  MSE	0.034604
+  //  RMSE	0.186023
+  //  nobs	535690
+  //  r2	0.013994
+  //  logloss	0.150638
+  //  AUC	0.657293
+  //  Gini	0.314585
+  //  mean_per_class_error	0.421468
 
-//  model	XGBoost_model_1511463550144_1
-//    model_checksum	-4691526202905552896
-//  frame	train_0.9
-//  frame_checksum	109074937358700432
-//  description	Metrics reported on training frame
-//    model_category	Binomial
-//    scoring_time	1511464659982
-//  predictions	·
-//  MSE	0.034604
-//  RMSE	0.186023
-//  nobs	535690
-//  r2	0.013994
-//  logloss	0.150638
-//  AUC	0.657293
-//  Gini	0.314585
-//  mean_per_class_error	0.421468
 
-  
   // valid
-  
-  
-  
+  //  model	XGBoost_model_1511463550144_1
+  //    model_checksum	-4691526202905552896
+  //  frame	test_0.9
+  //  frame_checksum	-8978652314917430272
+  //  description	Metrics reported on validation frame
+  //    model_category	Binomial
+  //    scoring_time	1511464660634
+  //  predictions	·
+  //  MSE	0.034936
+  //  RMSE	0.186912
+  //  nobs	59522
+  //  r2	0.011162
+  //  logloss	0.152519
+  //  AUC	0.640187
+  //  Gini	0.280375
+  //  mean_per_class_error	0.435849
+
 
   private def xgbModel(train: H2OFrame, valid: H2OFrame): XGBoostModel = {
     val params = new XGBoostParameters()
@@ -195,23 +247,30 @@ object ModelPrepariaiton {
     params._max_depth = 4
     params._min_child_weight = 0.77
     params._eta = 0.09
-    params._learn_rate = 0.3
     params._subsample = 0.8
     params._colsample_bytree = 0.8
     params._gamma = 10f
     params._max_bins = 256
     params._reg_alpha = 8f
     params._reg_lambda = 1.3f
+    params._learn_rate = 0.09
+    params._sample_rate = 0.8
     //    params._ignored_column.s = Array("id")
+
+    //set automagically?
+    params._min_rows = 0.77
+    params._col_sample_rate_per_tree = 0.8
+    params._min_split_improvement = 10f
+
 
     params._backend = Backend.cpu
     params._stopping_rounds = 20
     params._stopping_metric = StoppingMetric.AUC
-    
-    //TODO: test with other!!!
-    params._categorical_encoding = CategoricalEncodingScheme.OneHotExplicit
 
-    params._seed = 666L
+    //TODO: test with other!!!
+    params._categorical_encoding = CategoricalEncodingScheme.OneHotInternal
+
+    params._seed = 9127252994979121000L
 
 
     val dl = new XGBoost(params)
@@ -219,6 +278,48 @@ object ModelPrepariaiton {
 
   }
 
+
+  private def lgbModel(train: H2OFrame, valid: H2OFrame): XGBoostModel = {
+    val params = new XGBoostParameters()
+    params._train = train.key
+    params._valid = valid.key
+    params._response_column = "target"
+    params._ntrees = 1000
+    params._max_depth = 4
+    params._max_bins = 10
+    params._subsample = 0.8
+    params._colsample_bytree = 0.8
+    params._sample_rate = 0.8
+    params._learn_rate = 0.02
+    
+    params._booster = Booster.gbtree
+
+    params._backend = Backend.cpu
+    params._stopping_rounds = 200
+    params._stopping_metric = StoppingMetric.AUC
+
+    //TODO: test with other!!!
+    params._categorical_encoding = CategoricalEncodingScheme.OneHotInternal
+
+    params._seed = 9127252994979121000L
+
+    //params._min_child_weight = 0.77
+    //params._eta = 0.09
+    //    params._gamma = 10f
+    //    params._reg_alpha = 8f
+    //    params._reg_lambda = 1.3f
+    //    params._ignored_column.s = Array("id")
+
+    //set automagically?
+    //    params._sample_rate = 0.8
+    //    params._min_rows = 0.77
+    //    params._col_sample_rate_per_tree = 0.8
+    //    params._min_split_improvement = 10f
+
+    val dl = new XGBoost(params)
+    dl.trainModel.get
+
+  }
 
   /*
   * 
@@ -234,62 +335,60 @@ object ModelPrepariaiton {
   * "pred_noise_bandwidth":0,"calibrate_model":false}
   * */
 
-  
-  
-//  model	gbm
-//  model_checksum	-1409264291168570112
-//  frame	train_0.9
-//  frame_checksum	109074937358700432
-//  description	·
-//  model_category	Binomial
-//    scoring_time	1511468096575
-//  predictions	·
-//  MSE	0.034509
-//  RMSE	0.185765
-//  nobs	535690
-//  r2	0.016723
-//  logloss	0.150247
-//  AUC	0.658398
-//  Gini	0.316796
-//  mean_per_class_error	0.425025
-  
+
+  //  model	gbm
+  //  model_checksum	-1409264291168570112
+  //  frame	train_0.9
+  //  frame_checksum	109074937358700432
+  //  description	·
+  //  model_category	Binomial
+  //    scoring_time	1511468096575
+  //  predictions	·
+  //  MSE	0.034509
+  //  RMSE	0.185765
+  //  nobs	535690
+  //  r2	0.016723
+  //  logloss	0.150247
+  //  AUC	0.658398
+  //  Gini	0.316796
+  //  mean_per_class_error	0.425025
+
   //valid:
 
-//  model	gbm
-//    model_checksum	-1409264291168570112
-//  frame	test_0.9
-//  frame_checksum	-8978652314917430272
-//  description	·
-//  model_category	Binomial
-//    scoring_time	1511468100974
-//  predictions	·
-//  MSE	0.034949
-//  RMSE	0.186945
-//  nobs	59522
-//  r2	0.010808
-//  logloss	0.152702
-//  AUC	0.638738
-//  Gini	0.277475
-//  mean_per_class_error	0.430980
+  //  model	gbm
+  //    model_checksum	-1409264291168570112
+  //  frame	test_0.9
+  //  frame_checksum	-8978652314917430272
+  //  description	·
+  //  model_category	Binomial
+  //    scoring_time	1511468100974
+  //  predictions	·
+  //  MSE	0.034949
+  //  RMSE	0.186945
+  //  nobs	59522
+  //  r2	0.010808
+  //  logloss	0.152702
+  //  AUC	0.638738
+  //  Gini	0.277475
+  //  mean_per_class_error	0.430980
 
 
-
-//  model	XGBoost_model_1511463550144_1
-//    model_checksum	-4691526202905552896
-//  frame	test_0.9
-//  frame_checksum	-8978652314917430272
-//  description	Metrics reported on validation frame
-//    model_category	Binomial
-//    scoring_time	1511464660634
-//  predictions	·
-//  MSE	0.034936
-//  RMSE	0.186912
-//  nobs	59522
-//  r2	0.011162
-//  logloss	0.152519
-//  AUC	0.640187
-//  Gini	0.280375
-//  mean_per_class_error	0.435849
+  //  model	XGBoost_model_1511463550144_1
+  //    model_checksum	-4691526202905552896
+  //  frame	test_0.9
+  //  frame_checksum	-8978652314917430272
+  //  description	Metrics reported on validation frame
+  //    model_category	Binomial
+  //    scoring_time	1511464660634
+  //  predictions	·
+  //  MSE	0.034936
+  //  RMSE	0.186912
+  //  nobs	59522
+  //  r2	0.011162
+  //  logloss	0.152519
+  //  AUC	0.640187
+  //  Gini	0.280375
+  //  mean_per_class_error	0.435849
 
 
   private def gbmModel(train: H2OFrame, valid: H2OFrame): GBMModel = {
@@ -299,20 +398,22 @@ object ModelPrepariaiton {
     params._response_column = "target"
     params._ntrees = 500
     params._max_depth = 4
-    params._learn_rate = 0.02
+    params._learn_rate = 0.06
+    params._learn_rate_annealing = 0.99
     params._sample_rate = 0.8
     params._nbins_top_level = 20
     params._nbins_cats = 20
     params._col_sample_rate_per_tree = 0.8
-
+    params._nbins = 10
 
     params._stopping_rounds = 20
     params._stopping_metric = StoppingMetric.AUC
+    //    params._distribution = DistributionFamily.bernoulli
 
     //TODO: test with other!!!
-    params._categorical_encoding = CategoricalEncodingScheme.OneHotExplicit
+    params._categorical_encoding = CategoricalEncodingScheme.OneHotInternal
 
-    params._seed = 666L
+    params._seed = 666L //-8454382103278299000L
 
 
     val dl = new GBM(params)

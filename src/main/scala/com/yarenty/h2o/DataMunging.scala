@@ -1,9 +1,8 @@
 package com.yarenty.h2o
 
-import com.yarenty.h2o.ModelPrepariaiton.input
 import org.apache.commons.math3.stat.descriptive.rank.Median
-import water.{Futures, Key}
 import water.fvec._
+import water.{Futures, Key}
 
 object DataMunging {
 
@@ -23,7 +22,7 @@ object DataMunging {
 
         }
         println("[median] PROCESEED:" + n)
-        
+
       }
     }
   }
@@ -41,7 +40,7 @@ object DataMunging {
         println(s"[hotone] SKPIPPED: ${n} cardinal: ${dom.length}")
       }
     }
-    
+
   }
 
 

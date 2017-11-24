@@ -9,7 +9,6 @@ import water.util.Log
 object Main extends H2OStarter {
 
 
-
   def main(args: Array[String]): Unit = {
 
 
@@ -19,10 +18,11 @@ object Main extends H2OStarter {
 
 
     memoryInfo("start")
-    ModelPrepariaiton.flow()
+//    ModelPrepariaiton.flow()
+    ModelPrepariaiton.buildModel()
     memoryInfo("finish")
     // Shutdown Spark cluster and H2O
-//    shutdown()
+    //    shutdown()
   }
 
 }
