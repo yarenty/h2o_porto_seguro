@@ -18,7 +18,7 @@ object Main extends H2OStarter {
 
 
     memoryInfo("start")
-//    ModelPrepariaiton.flow()
+//    ModelPrepariaiton.reBuildData()
     ModelPrepariaiton.buildModel()
     memoryInfo("finish")
     // Shutdown Spark cluster and H2O

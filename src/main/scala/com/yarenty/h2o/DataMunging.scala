@@ -31,7 +31,7 @@ object DataMunging {
     h2OFrame.colToEnum(names)
     for (n <- names) {
       val dom = h2OFrame.vec(n).domain()
-      if (dom.length > 2 && dom.length < 7) {
+      if ((dom.length > 2 && dom.length < 8) || n == "ps_ind_05_cat" || n == "ps_ind_15" || n == "ps_ind_3") {
         for (i <- 0 until dom.length) {
           h2OFrame.add(n + "_oh_" + i, calcOH(h2OFrame.vec(n), i))
           println(s"[hotone] PROCESSED: ${n} cardinal: ${dom.length}")
@@ -43,6 +43,35 @@ object DataMunging {
 
   }
 
+
+  def processNormalization(h2OFrame: H2OFrame): Unit = {
+    for (n <- h2OFrame._names) {
+      val dom = h2OFrame.vec(n)
+      if (dom.isNumeric  && dom.mean()>2.0 && n != "id" && !n.contains("_ind")) {
+          h2OFrame.remove(n)
+          h2OFrame.add(n, normalize(dom))
+          println(s"[normalize] PROCESSED: $n ")
+      } else {
+        println(s"[normalize] SKPIPPED: $n ")
+      }
+    }
+
+  }
+
+
+  private def normalize(in: Vec): Vec = {
+    val vec = Vec.makeZero(in.length)
+    val vw = vec.open
+
+    val max = in.max
+    val min = in.min
+    
+    for (i <- 0 until in.length.toInt) {
+      vw.set(i,  (in.at(i) - min) * 3 / max)
+    }
+    vw.close()
+    vec
+  }
 
   private def calcOH(in: Vec, v: Int): Vec = {
     val vec = Vec.makeZero(in.length)
@@ -109,16 +138,18 @@ object DataMunging {
 
 
   def processMultiply(h2OFrame: H2OFrame): Unit = {
-    h2OFrame.add("ps_car_13_x_ps_reg_03", multiplyVec(h2OFrame.vec("ps_car_13"), h2OFrame.vec("ps_reg_03")))
-    println("[multiply] PROCSEED: ps_car_13_x_ps_reg_03")
+    h2OFrame.add("ps_car_13_x_ps_reg_03", multiplyVec(h2OFrame.vec("ps_car_13"), h2OFrame.vec("ps_reg_03"), 0.3))
+    h2OFrame.add("ps_car_13_x_ps_reg_01", multiplyVec(h2OFrame.vec("ps_car_13"), h2OFrame.vec("ps_reg_01")))
+    h2OFrame.add("ps_car_13_x_ps_reg_02", multiplyVec(h2OFrame.vec("ps_car_13"), h2OFrame.vec("ps_reg_02"),0.2))
+    println("[multiply] PROCSEED: ps_car_13_x_ps_reg_0X")
   }
 
-  def multiplyVec(a: Vec, b: Vec): Vec = {
+  def multiplyVec(a: Vec, b: Vec, s:Double = 1.0): Vec = {
     val vec = Vec.makeZero(a.length)
     val vw = vec.open
 
     for (i <- 0 until a.length.toInt) {
-      vw.set(i, a.at(i) * b.at(i))
+      vw.set(i, a.at(i) * b.at(i) * s)
     }
     vw.close()
     vec
@@ -139,6 +170,8 @@ object DataMunging {
     for (i <- 0 until in.length.toInt) {
       if (in.at(i).isNaN)
         vw.set(i, -1)
+        //TODO try me!
+//        vw.set(i, 0)
       else
         vw.set(i, in.at(i))
     }

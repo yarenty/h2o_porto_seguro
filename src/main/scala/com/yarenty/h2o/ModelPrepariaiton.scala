@@ -10,7 +10,7 @@ import hex.genmodel.utils.DistributionFamily
 import hex.tree.gbm.GBMModel.GBMParameters
 import hex.tree.gbm.{GBM, GBMModel}
 import hex.tree.xgboost.XGBoostModel.XGBoostParameters
-import hex.tree.xgboost.XGBoostModel.XGBoostParameters.{Backend, Booster}
+import hex.tree.xgboost.XGBoostModel.XGBoostParameters.{Backend, Booster, GrowPolicy, TreeMethod}
 import hex.tree.xgboost.{XGBoost, XGBoostModel}
 import water.fvec.{Frame, H2OFrame}
 
@@ -19,13 +19,14 @@ import water.fvec.{Frame, H2OFrame}
   */
 object ModelPrepariaiton {
 
+  val version = "4"
 
   val datadir = "/opt/data/porto_seguro"
 
 
   // Visualization
 
-  def flow(): Unit = {
+  def reBuildData(): Unit = {
 
 
     val trainFile = datadir + "/train.csv"
@@ -37,10 +38,10 @@ object ModelPrepariaiton {
 
 
     //this must be here as next step sreates a lots of _cat columns ;-)
-    val toBeEnums = input.names.filter(n => n.contains("_cat")) ++ Array(
+    val toBeEnums = input.names.filter(n => n.contains("_cat")  ) ++ Array( //|| n.contains("_ind")
       //      "ps_ind_01", "ps_ind_03", "ps_ind_14","ps_ind_15", 
       //      "ps_reg_01", "ps_reg_02",
-      //      "ps_car_11", "ps_car_15",
+       //     "ps_car_11", // "ps_car_15",
       "ps_calc_01", "ps_calc_02", "ps_calc_03", "ps_calc_04", "ps_calc_05",
       "ps_calc_06", "ps_calc_07", "ps_calc_08", "ps_calc_09", "ps_calc_10",
       "ps_calc_11", "ps_calc_12", "ps_calc_13", "ps_calc_14"
@@ -99,6 +100,8 @@ object ModelPrepariaiton {
     DataMunging.processMultiply(test)
 
 
+//    DataMunging.processNormalization(input)
+//    DataMunging.processNormalization(test)
     // no more removing
     //    val toRemove = Array("id",
     //      "ps_car_03_cat", "ps_car_05_cat" // to many missing values no point
@@ -111,10 +114,10 @@ object ModelPrepariaiton {
 
     val (train, valid) = split(input, 0.9) // this is split 0.8/0.2
 
-    //    saveCSV(input, datadir + "/trainbig.csv")
-    //    saveCSV(test, datadir + "/testbig.csv")    
-    //    saveCSV(train, datadir + "/trainbig.csv")
-    //    saveCSV(valid, datadir + "/validbig.csv")
+//        saveCSV(input, datadir + "/trainbig2.csv")
+        saveCSV(test, datadir + s"/testbig${version}.csv")    
+        saveCSV(train, datadir + "/trainbig${version}.csv")
+        saveCSV(valid, datadir + "/validbig${version}.csv")
 
     calculate(train, valid, test)
 
@@ -128,19 +131,19 @@ object ModelPrepariaiton {
 
 
   def buildModel(): Unit = {
-    val trainFile = datadir + "/trainbig.csv"
-    val validFile = datadir + "/validbig.csv"
-    val testFile = datadir + "/testbig.csv"
+    val trainFile = datadir + "/trainbig${version}.csv"
+    val validFile = datadir + "/validbig${version}.csv"
+    val testFile = datadir + "/testbig${version}.csv"
 
     val train = new H2OFrame(getSimpleCSVParser, new URI(trainFile))
     val valid = new H2OFrame(getSimpleCSVParser, new URI(validFile))
     val test = new H2OFrame(getSimpleCSVParser, new URI(testFile))
     
-    val toBeEnums = train.names.filter(n => n.endsWith("_cat") || n.endsWith("_bin") || n.endsWith("_range") || n.contains("_oh_")) ++ Array(
-      "target",
+    val toBeEnums = train.names.filter(n => n.endsWith("_cat") || n.endsWith("_bin") || n.endsWith("_range") || n.contains("_oh_") || n.contains("_ind_")) ++ Array( // || n.endsWith("_range") || n.contains("_oh_")
+      "target", "ps_car_11",
       "ps_calc_01", "ps_calc_02", "ps_calc_03", "ps_calc_04", "ps_calc_05",
       "ps_calc_06", "ps_calc_07", "ps_calc_08", "ps_calc_09", "ps_calc_10",
-      "ps_calc_11", "ps_calc_12", "ps_calc_13", "ps_calc_14"
+      "ps_calc_11", "ps_calc_12", "ps_calc_13", "ps_calc_14", "ps_car_15_pow2"
     )
     train.colToEnum(toBeEnums)
     valid.colToEnum(toBeEnums)
@@ -151,16 +154,16 @@ object ModelPrepariaiton {
 
 
   private def calculate(train: Frame, valid: Frame, test: H2OFrame) = {
-    val model = xgbModel(H2OFrame(train), H2OFrame(valid))
-    println(model)
-    val prediction = model.score(test)
-    saveCSV(prediction, datadir + "/out.csv")
+//    val model = xgbModel(H2OFrame(train), H2OFrame(valid))
+//    println(model)
+//    val prediction = model.score(test)
+//    saveCSV(prediction, datadir + "/out.csv")
 
 
     val model2 = lgbModel(H2OFrame(train), H2OFrame(valid))
     println(model2)
     val prediction2 = model2.score(test)
-    saveCSV(prediction2, datadir + "/out2.csv")
+    saveCSV(prediction2, datadir + "/out${version}.csv")
   }
 
 
@@ -261,8 +264,13 @@ object ModelPrepariaiton {
     params._min_rows = 0.77
     params._col_sample_rate_per_tree = 0.8
     params._min_split_improvement = 10f
-
-
+    
+    
+    params._score_tree_interval = 20
+    
+    params._booster = Booster.dart
+    
+    
     params._backend = Backend.cpu
     params._stopping_rounds = 20
     params._stopping_metric = StoppingMetric.AUC
@@ -284,7 +292,7 @@ object ModelPrepariaiton {
     params._train = train.key
     params._valid = valid.key
     params._response_column = "target"
-    params._ntrees = 1000
+    params._ntrees = 600
     params._max_depth = 4
     params._max_bins = 10
     params._subsample = 0.8
@@ -294,6 +302,10 @@ object ModelPrepariaiton {
     
     params._booster = Booster.gbtree
 
+    params._grow_policy = GrowPolicy.lossguide
+    params._tree_method = TreeMethod.hist
+    
+    params._score_tree_interval = 50
     params._backend = Backend.cpu
     params._stopping_rounds = 200
     params._stopping_metric = StoppingMetric.AUC
@@ -301,7 +313,7 @@ object ModelPrepariaiton {
     //TODO: test with other!!!
     params._categorical_encoding = CategoricalEncodingScheme.OneHotInternal
 
-    params._seed = 9127252994979121000L
+    params._seed = 99L
 
     //params._min_child_weight = 0.77
     //params._eta = 0.09
@@ -396,7 +408,7 @@ object ModelPrepariaiton {
     params._train = train.key
     params._valid = valid.key
     params._response_column = "target"
-    params._ntrees = 500
+    params._ntrees = 600
     params._max_depth = 4
     params._learn_rate = 0.06
     params._learn_rate_annealing = 0.99
